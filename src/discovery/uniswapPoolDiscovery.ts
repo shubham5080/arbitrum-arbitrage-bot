@@ -3,29 +3,26 @@ import { ADDRESSES } from "../config/addresses";
 import { getPoolLiquidity } from "../validation/poolValidator";
 import { RISK } from "../config/risk";
 import { logRejectedRoute } from "../utils/rejectionLogger";
+import { PoolMetadata } from "../types/poolMetadata";
+import { buildPoolMetadata, fetchPoolTokens } from "./poolMetadataHelpers";
 
 const FEES = [500, 3000, 10000];
 const FACTORY_ABI = ["function getPool(address,address,uint24) external view returns (address)"];
 
-export type PoolCandidate = {
-  fee: number;
-  address: string;
-  liquidity: bigint;
-  dex: string;
-};
+export type PoolCandidate = PoolMetadata;
 
 export async function findBestUniswapPool(
   provider: ethers.Provider,
   tokenA: string,
   tokenB: string
-): Promise<PoolCandidate | null> {
+): Promise<PoolMetadata | null> {
   const factory = new ethers.Contract(
     ADDRESSES.UNISWAP_V3_FACTORY,
     FACTORY_ABI,
     provider
   ) as any;
 
-  const candidates: PoolCandidate[] = [];
+  const candidates: PoolMetadata[] = [];
 
   for (const fee of FEES) {
     try {
@@ -39,12 +36,11 @@ export async function findBestUniswapPool(
         logRejectedRoute({ tokenPath: [tokenA, tokenB], poolAddress, liquidity, reason: "liquidity_below_MIN_POOL_LIQUIDITY" });
         continue;
       }
-      candidates.push({
-        fee,
-        address: poolAddress,
-        liquidity,
-        dex: "UNISWAP",
-      });
+
+      const { token0, token1 } = await fetchPoolTokens(provider, poolAddress);
+      candidates.push(
+        buildPoolMetadata(poolAddress, "UNISWAP", "V3", fee, token0, token1, liquidity)
+      );
     } catch {
       continue;
     }
@@ -55,4 +51,37 @@ export async function findBestUniswapPool(
   }
 
   return candidates.sort((a, b) => (a.liquidity > b.liquidity ? -1 : 1))[0] ?? null;
+}
+
+export async function findAllUniswapPools(
+  provider: ethers.Provider,
+  tokenA: string,
+  tokenB: string
+): Promise<PoolMetadata[]> {
+  const factory = new ethers.Contract(
+    ADDRESSES.UNISWAP_V3_FACTORY,
+    FACTORY_ABI,
+    provider
+  ) as any;
+
+  const candidates: PoolMetadata[] = [];
+
+  for (const fee of FEES) {
+    try {
+      const poolAddress = await factory.getPool(tokenA, tokenB, fee);
+      if (!poolAddress || poolAddress === ethers.ZeroAddress) continue;
+
+      const liquidity = await getPoolLiquidity(provider, poolAddress);
+      if (liquidity < RISK.MIN_POOL_LIQUIDITY) continue;
+
+      const { token0, token1 } = await fetchPoolTokens(provider, poolAddress);
+      candidates.push(
+        buildPoolMetadata(poolAddress, "UNISWAP", "V3", fee, token0, token1, liquidity)
+      );
+    } catch {
+      continue;
+    }
+  }
+
+  return candidates.sort((a, b) => (a.liquidity > b.liquidity ? -1 : 1));
 }

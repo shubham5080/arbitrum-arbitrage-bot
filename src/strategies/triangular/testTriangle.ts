@@ -70,9 +70,9 @@ async function main() {
       try {
         console.log(`\n🔄 DEX Combination: Uniswap -> Sushi -> (Camelot|Uniswap)`);
         const poolAddresses1: any = {};
-        if (sushiPoolMiddleEnd?.address) poolAddresses1.leg2 = sushiPoolMiddleEnd.address;
+        if (sushiPoolMiddleEnd?.poolAddress) poolAddresses1.leg2 = sushiPoolMiddleEnd.poolAddress;
         const finalDex1 = camelotPoolWETH_USDC ? "camelot" : "uniswap";
-        if (finalDex1 === "camelot" && camelotPoolWETH_USDC?.address) poolAddresses1.leg3 = camelotPoolWETH_USDC.address;
+        if (finalDex1 === "camelot" && camelotPoolWETH_USDC?.poolAddress) poolAddresses1.leg3 = camelotPoolWETH_USDC.poolAddress;
 
         const result1 = await simulator.simulateTriangle(
           route,
@@ -144,9 +144,9 @@ async function main() {
 
         console.log(`\n🔄 DEX Combination: Sushi -> Uniswap -> (Camelot|Uniswap)`);
         const poolAddresses2: any = {};
-        if (sushiPoolStartMiddle?.address) poolAddresses2.leg1 = sushiPoolStartMiddle.address;
+        if (sushiPoolStartMiddle?.poolAddress) poolAddresses2.leg1 = sushiPoolStartMiddle.poolAddress;
         const finalDex2 = camelotPoolWETH_USDC ? "camelot" : "uniswap";
-        if (finalDex2 === "camelot" && camelotPoolWETH_USDC?.address) poolAddresses2.leg3 = camelotPoolWETH_USDC.address;
+        if (finalDex2 === "camelot" && camelotPoolWETH_USDC?.poolAddress) poolAddresses2.leg3 = camelotPoolWETH_USDC.poolAddress;
 
         const result2 = await simulator.simulateTriangle(
           route,

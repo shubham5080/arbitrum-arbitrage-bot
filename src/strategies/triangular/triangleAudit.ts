@@ -58,12 +58,12 @@ async function audit() {
       console.log({ dex: 'uniswap', tokenIn: 'USDC', tokenOut: 'ARB', amountIn: size, amountOut: Number(ethers.formatUnits(uniOut, TOKENS.ARB.decimals)), quoteSource: 'quoter' });
     } catch (err) { console.warn('Uniswap quote failed:', err); }
 
-    if (sushiPoolUSDC_ARB?.address) {
+    if (sushiPoolUSDC_ARB?.poolAddress) {
       console.log('DEX: Sushi (pool spot price)');
-      const poolInfo = await inspectPool(provider, sushiPoolUSDC_ARB.address);
+      const poolInfo = await inspectPool(provider, sushiPoolUSDC_ARB.poolAddress);
       console.log('Pool info:', poolInfo);
       try {
-        const sushiOut = await getSushiBuyQuote(provider, TOKENS.ARB.address, TOKENS.ARB.decimals, String(size), sushiPoolUSDC_ARB.address);
+        const sushiOut = await getSushiBuyQuote(provider, TOKENS.ARB.address, TOKENS.ARB.decimals, String(size), sushiPoolUSDC_ARB);
         console.log({ dex: 'sushi', tokenIn: 'USDC', tokenOut: 'ARB', amountIn: size, amountOut: Number(ethers.formatUnits(sushiOut, TOKENS.ARB.decimals)), quoteSource: 'spot(pool slot0)'});
       } catch (err) { console.warn('Sushi quote failed:', err); }
     } else {
@@ -72,9 +72,9 @@ async function audit() {
 
     // Leg 2: ARB -> WETH
     console.log('\n-- Leg 2: ARB -> WETH');
-    if (sushiPoolARB_WETH?.address) {
+    if (sushiPoolARB_WETH?.poolAddress) {
       console.log('DEX: Sushi (pool spot price)');
-      const poolInfo = await inspectPool(provider, sushiPoolARB_WETH.address);
+      const poolInfo = await inspectPool(provider, sushiPoolARB_WETH.poolAddress);
       console.log('Pool info:', poolInfo);
       try {
         const slot0 = poolInfo.slot0;

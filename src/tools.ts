@@ -14,7 +14,29 @@ import {
 } from "./analytics/stats";
 import { formatStats } from "./analytics/dashboard";
 import { generateReport, saveReport } from "./analytics/reportGenerator";
+import { runReplayAnalysis } from "./backtest/replayEngine";
+import { runExecutionAnalysis } from "./execution/executionPlanner";
+import { printExecutionDashboard } from "./analytics/executionDashboard";
+import { runScannerAudit } from "./audit/opportunityAuditor";
+import { runForensicInvestigation } from "./forensics/forensicReport";
+import { saveAlphaDiscoveryReport } from "./research/coverageReport";
+import { saveExpansionValidationReport } from "./research/expansionValidation";
+import { saveStablecoinReport } from "./research/stablecoinReport";
+import { saveStrategyReport } from "./research/strategyReport";
+import { saveTriangleReport } from "./research/triangleReport";
+import { saveFinalValidationReport } from "./research/finalValidationReport";
+import { runPriorityTriangleScan } from "./triangular/triangleEngine";
+import { initializeTriangularTables } from "./triangular/triangularDatabase";
+import { generateCurveInventoryReport, formatCurveInventoryMarkdown } from "./research/curveResearch";
+import { scanPegDeviations, formatPegTable } from "./stablecoin/pegMonitor";
+import { runStablecoinCollectionCycle } from "./stablecoin/stablecoinCollector";
+import { initializeStablecoinTables } from "./stablecoin/stablecoinDatabase";
+import { HistoricalDensity } from "./research/opportunityDensity";
 import { Opportunity } from "./types/opportunity";
+import { ethers } from "ethers";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 async function main() {
   initializeDatabase();
@@ -33,6 +55,19 @@ async function main() {
     console.log("  count-5min         - Count opportunities in last 5 minutes");
     console.log("  count-1h           - Count opportunities in last 1 hour");
     console.log("  generate-report    - Generate Day 14 research report");
+    console.log("  replay-analysis    - Run Day 21 opportunity replay analysis");
+    console.log("  scanner-audit      - Run Day 25.5 scanner quote audit");
+    console.log("  quote-forensics    - Run Day 26 quote engine forensics");
+    console.log("  alpha-discovery    - Run Day 28 market expansion research");
+    console.log("  expansion-validation - Run Day 29 PancakeSwap expansion validation");
+    console.log("  stablecoin-research  - Run Day 30 stablecoin research report");
+    console.log("  strategy-report      - Run Day 31 strategic direction validation");
+    console.log("  triangle-research    - Run Day 32 triangular research report");
+    console.log("  final-validation     - Run Day 33 go/no-go validation audit");
+    console.log("  triangle-scan        - Single priority triangle scan");
+    console.log("  stablecoin-scan      - Single stablecoin peg deviation scan");
+    console.log("  curve-inventory      - Curve pool inventory report");
+    console.log("  stablecoin-collect   - Run one stablecoin collection cycle");
     console.log("  cleanup-7d         - Delete opportunities older than 7 days");
     console.log("  lifetime <token> <route> <size> - Track opportunity lifetime");
     console.log("  test-save          - Test saving a sample opportunity");
@@ -88,6 +123,226 @@ async function main() {
         console.log(`- Best Route: ${bestRoute ? bestRoute.route : "N/A"}`);
       } catch (error) {
         console.error(`❌ Error generating report:`, error);
+      }
+      break;
+    }
+
+    case "replay-analysis": {
+      try {
+        const windowSecondsArg = process.argv[3];
+        const windowSeconds = windowSecondsArg
+          ? parseInt(windowSecondsArg, 10)
+          : 3600;
+        console.log("Running opportunity replay analysis...");
+        const { reportPath } = await runReplayAnalysis(windowSeconds);
+        console.log("\n📊 Replay analysis completed!");
+        console.log(`Report saved to: ${reportPath}`);
+      } catch (error) {
+        console.error(`❌ Error running replay analysis:`, error);
+      }
+      break;
+    }
+
+    case "execution-analysis": {
+      try {
+        const windowSecondsArg = process.argv[3];
+        const windowSeconds = windowSecondsArg
+          ? parseInt(windowSecondsArg, 10)
+          : 3600;
+        console.log("Running execution planning analysis...");
+        const { dashboard } = await runExecutionAnalysis(windowSeconds);
+        console.log("\n📊 Execution planning completed!");
+        printExecutionDashboard(dashboard);
+      } catch (error) {
+        console.error(`❌ Error running execution analysis:`, error);
+      }
+      break;
+    }
+
+    case "quote-forensics": {
+      try {
+        console.log("Running Day 26 quote forensics...");
+        const { data, reportPath } = await runForensicInvestigation();
+        console.log("\n🔬 Forensics completed!");
+        console.log(`  Profitable opportunities: ${data.profitableCount}`);
+        console.log(`  Unique routes analyzed: ${data.uniqueRoutes}`);
+        console.log(`  Phantom artifacts: ${data.phantomSpreads.filter((p) => p.isArtifact).length}`);
+        console.log(`  Root cause: ${data.rootCause[0] ?? "see report"}`);
+        console.log(`  Report: ${reportPath}`);
+      } catch (error) {
+        console.error(`❌ Error running quote forensics:`, error);
+      }
+      break;
+    }
+
+    case "scanner-audit": {
+      try {
+        console.log("Running Day 25.5 scanner audit...");
+        const summary = await runScannerAudit();
+        console.log("📊 Scanner audit completed!");
+        console.log(`  Audited: ${summary.auditedCount} opportunities`);
+        console.log(`  Unique routes: ${summary.uniqueRoutes}`);
+        console.log(`  CONFIRMED: ${summary.report.confirmedCount}`);
+        console.log(`  PARTIAL: ${summary.report.partialCount}`);
+        console.log(`  FALSE_POSITIVE: ${summary.report.falsePositiveCount}`);
+        console.log(`  ACTUALLY_EXECUTABLE: ${summary.report.actuallyExecutableCount}`);
+        console.log(`  Report: ${summary.reportPath}`);
+      } catch (error) {
+        console.error(`❌ Error running scanner audit:`, error);
+      }
+      break;
+    }
+
+    case "alpha-discovery": {
+      try {
+        console.log("Running Day 28 alpha discovery...");
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const historical: HistoricalDensity[] = [
+          { token: "ARB", route: "SUSHI -> UNISWAP", count: 77, avgProfit: 1.37, falsePositive: true },
+          { token: "ARB", route: "UNISWAP -> SUSHI", count: 24, avgProfit: 0.41, falsePositive: true },
+          { token: "WETH", route: "UNISWAP -> SUSHI", count: 1, avgProfit: 23.96, falsePositive: true },
+        ];
+        const report = await saveAlphaDiscoveryReport(provider, historical);
+        console.log("\n📊 Alpha discovery completed!");
+        console.log(`  Missing tokens: ${report.tokenCoverage.missing.length}`);
+        console.log(`  Missing DEXes: ${report.dexCoverage.missing.length}`);
+        console.log(`  Top expansion token: ${report.tokenCoverage.expansionCandidates[0]?.symbol ?? "N/A"}`);
+        console.log(`  Top expansion DEX: ${report.dexCoverage.expansionRankings[0]?.name ?? "N/A"}`);
+        console.log(`  Report: docs/day28_alpha_discovery.md`);
+      } catch (error) {
+        console.error(`❌ Error running alpha discovery:`, error);
+      }
+      break;
+    }
+
+    case "expansion-validation": {
+      try {
+        console.log("Running Day 29 expansion validation...");
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const result = await saveExpansionValidationReport(provider);
+        console.log("\n📊 Expansion validation completed!");
+        console.log(`  Scannable tokens: ${result.tokenCoverage.filter((t) => t.scannable).length}`);
+        console.log(`  Routes evaluated: ${result.scanStats.routesEvaluated}`);
+        console.log(`  Profitable: ${result.profitable.length}`);
+        console.log(`  Report: docs/day29_market_expansion_validation.md`);
+      } catch (error) {
+        console.error(`❌ Error running expansion validation:`, error);
+      }
+      break;
+    }
+
+    case "final-validation": {
+      try {
+        if (!process.env.RPC_URL) throw new Error("RPC_URL required");
+        initializeDatabase();
+        console.log("Running Day 33 final validation audit...");
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const reportPath = await saveFinalValidationReport(provider);
+        console.log("\n📊 Final validation report generated!");
+        console.log(`  Report: ${reportPath}`);
+      } catch (error) {
+        console.error(`❌ Error running final validation:`, error);
+      }
+      break;
+    }
+
+    case "triangle-research": {
+      try {
+        if (!process.env.RPC_URL) throw new Error("RPC_URL required");
+        console.log("Running Day 32 triangular research...");
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const skipScan = process.argv[3] === "--no-scan";
+        const reportPath = await saveTriangleReport(provider, !skipScan);
+        console.log("\n📊 Triangle research report generated!");
+        console.log(`  Report: ${reportPath}`);
+      } catch (error) {
+        console.error(`❌ Error running triangle research:`, error);
+      }
+      break;
+    }
+
+    case "triangle-scan": {
+      try {
+        if (!process.env.RPC_URL) throw new Error("RPC_URL required");
+        initializeTriangularTables();
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const report = await runPriorityTriangleScan(provider, true);
+        console.log(`\n📊 Triangle scan: ${report.routesEvaluated} routes, ${report.profitable} profitable`);
+        if (report.best?.quoteSuccess) {
+          console.log(`  Best: ${report.best.cycle.label} via ${report.best.dexPathLabel} = $${report.best.netProfit.toFixed(2)}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error running triangle scan:`, error);
+      }
+      break;
+    }
+
+    case "strategy-report": {
+      try {
+        if (!process.env.RPC_URL) throw new Error("RPC_URL required");
+        console.log("Running Day 31 strategic direction validation...");
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const reportPath = await saveStrategyReport(provider);
+        console.log("\n📊 Strategy report generated!");
+        console.log(`  Report: ${reportPath}`);
+      } catch (error) {
+        console.error(`❌ Error running strategy report:`, error);
+      }
+      break;
+    }
+
+    case "stablecoin-research": {
+      try {
+        if (!process.env.RPC_URL) throw new Error("RPC_URL required");
+        console.log("Running Day 30 stablecoin research...");
+        initializeStablecoinTables();
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const windowArg = process.argv[3];
+        const windowSeconds = windowArg ? parseInt(windowArg, 10) : undefined;
+        const reportPath = await saveStablecoinReport(provider, windowSeconds);
+        console.log("\n📊 Stablecoin research report generated!");
+        console.log(`  Report: ${reportPath}`);
+      } catch (error) {
+        console.error(`❌ Error running stablecoin research:`, error);
+      }
+      break;
+    }
+
+    case "stablecoin-scan": {
+      try {
+        if (!process.env.RPC_URL) throw new Error("RPC_URL required");
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const readings = await scanPegDeviations(provider);
+        console.log("\n📊 Peg deviation scan:\n");
+        console.log(formatPegTable(readings));
+      } catch (error) {
+        console.error(`❌ Error running stablecoin scan:`, error);
+      }
+      break;
+    }
+
+    case "curve-inventory": {
+      try {
+        if (!process.env.RPC_URL) throw new Error("RPC_URL required");
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const report = await generateCurveInventoryReport(provider);
+        console.log(formatCurveInventoryMarkdown(report));
+      } catch (error) {
+        console.error(`❌ Error running curve inventory:`, error);
+      }
+      break;
+    }
+
+    case "stablecoin-collect": {
+      try {
+        if (!process.env.RPC_URL) throw new Error("RPC_URL required");
+        initializeStablecoinTables();
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const { readings, comparisons } = await runStablecoinCollectionCycle(provider);
+        console.log(`\n📊 Collection cycle complete: ${readings.length} readings, ${comparisons} comparisons`);
+        console.log(formatPegTable(readings));
+      } catch (error) {
+        console.error(`❌ Error running stablecoin collection:`, error);
       }
       break;
     }

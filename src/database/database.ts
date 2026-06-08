@@ -1,6 +1,8 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { Opportunity } from "../types/opportunity";
+import { initializeStablecoinTables } from "../stablecoin/stablecoinDatabase";
+import { initializeTriangularTables } from "../triangular/triangularDatabase";
 
 const dbPath = path.join(__dirname, "../../arbitrage.db");
 const db = new Database(dbPath);
@@ -63,8 +65,205 @@ export function initializeDatabase() {
 
   db.exec(createTableSQL);
   db.exec(createIndexSQL);
+  initializeAuditTable();
+  initializeQuoteTraceTable();
+  initializeStablecoinTables();
+  initializeTriangularTables();
 
   console.log(`Database initialized at ${dbPath}`);
+}
+
+export interface StoredAuditResult {
+  id?: number;
+  opportunity_id: number;
+  validation_status: string;
+  profit_original: number;
+  profit_revalidated: number;
+  decay_percent: number;
+  executable: number;
+  failure_reason: string | null;
+  timestamp: number;
+  token: string;
+  route: string;
+  size: number;
+  scanner_profit: number;
+  realistic_profit: number;
+  slippage_loss: number;
+  executable_status: string;
+  quote_snapshots_json: string;
+}
+
+export function initializeAuditTable() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS audit_results (
+      id INTEGER PRIMARY KEY,
+      opportunity_id INTEGER NOT NULL,
+      validation_status TEXT NOT NULL,
+      profit_original REAL NOT NULL,
+      profit_revalidated REAL NOT NULL,
+      decay_percent REAL NOT NULL,
+      executable INTEGER NOT NULL,
+      failure_reason TEXT,
+      timestamp INTEGER NOT NULL,
+      token TEXT NOT NULL,
+      route TEXT NOT NULL,
+      size REAL NOT NULL,
+      scanner_profit REAL NOT NULL,
+      realistic_profit REAL NOT NULL,
+      slippage_loss REAL NOT NULL,
+      executable_status TEXT NOT NULL,
+      quote_snapshots_json TEXT NOT NULL
+    );
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_audit_opportunity ON audit_results(opportunity_id);
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_results(timestamp);
+  `);
+}
+
+export function clearAuditResults(): number {
+  const result = db.prepare("DELETE FROM audit_results").run();
+  return result.changes;
+}
+
+export function saveAuditResult(result: StoredAuditResult): number {
+  const stmt = db.prepare(`
+    INSERT INTO audit_results (
+      opportunity_id,
+      validation_status,
+      profit_original,
+      profit_revalidated,
+      decay_percent,
+      executable,
+      failure_reason,
+      timestamp,
+      token,
+      route,
+      size,
+      scanner_profit,
+      realistic_profit,
+      slippage_loss,
+      executable_status,
+      quote_snapshots_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const insert = stmt.run(
+    result.opportunity_id,
+    result.validation_status,
+    result.profit_original,
+    result.profit_revalidated,
+    result.decay_percent,
+    result.executable,
+    result.failure_reason,
+    result.timestamp,
+    result.token,
+    result.route,
+    result.size,
+    result.scanner_profit,
+    result.realistic_profit,
+    result.slippage_loss,
+    result.executable_status,
+    result.quote_snapshots_json
+  );
+
+  return insert.lastInsertRowid as number;
+}
+
+export function getAllAuditResults(): StoredAuditResult[] {
+  return db.prepare("SELECT * FROM audit_results ORDER BY timestamp DESC").all() as StoredAuditResult[];
+}
+
+export function getProfitableOpportunities(): StoredOpportunity[] {
+  return db
+    .prepare("SELECT * FROM opportunities WHERE net_profit > 0 ORDER BY timestamp ASC")
+    .all() as StoredOpportunity[];
+}
+
+export function countAuditResults(): number {
+  const row = db.prepare("SELECT COUNT(*) as count FROM audit_results").get() as { count: number };
+  return row.count;
+}
+
+export interface StoredQuoteTrace {
+  id?: number;
+  opportunity_id: number | null;
+  token: string;
+  route: string;
+  size: number;
+  leg: string;
+  dex: string;
+  pool_address: string;
+  pool_type: string;
+  quote_method: string;
+  amount_in: string;
+  amount_out: string;
+  fee_tier: number | null;
+  liquidity: string | null;
+  notes_json: string;
+  timestamp: number;
+}
+
+export function initializeQuoteTraceTable() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS quote_traces (
+      id INTEGER PRIMARY KEY,
+      opportunity_id INTEGER,
+      token TEXT NOT NULL,
+      route TEXT NOT NULL,
+      size REAL NOT NULL,
+      leg TEXT NOT NULL,
+      dex TEXT NOT NULL,
+      pool_address TEXT NOT NULL,
+      pool_type TEXT NOT NULL,
+      quote_method TEXT NOT NULL,
+      amount_in TEXT NOT NULL,
+      amount_out TEXT NOT NULL,
+      fee_tier INTEGER,
+      liquidity TEXT,
+      notes_json TEXT NOT NULL,
+      timestamp INTEGER NOT NULL
+    );
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_quote_trace_opp ON quote_traces(opportunity_id);`);
+}
+
+export function clearQuoteTraces(): number {
+  return db.prepare("DELETE FROM quote_traces").run().changes;
+}
+
+export function saveQuoteTrace(trace: StoredQuoteTrace): number {
+  const result = db
+    .prepare(
+      `INSERT INTO quote_traces (
+        opportunity_id, token, route, size, leg, dex, pool_address, pool_type,
+        quote_method, amount_in, amount_out, fee_tier, liquidity, notes_json, timestamp
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      trace.opportunity_id,
+      trace.token,
+      trace.route,
+      trace.size,
+      trace.leg,
+      trace.dex,
+      trace.pool_address,
+      trace.pool_type,
+      trace.quote_method,
+      trace.amount_in,
+      trace.amount_out,
+      trace.fee_tier,
+      trace.liquidity,
+      trace.notes_json,
+      trace.timestamp
+    );
+  return result.lastInsertRowid as number;
+}
+
+export function getAllQuoteTraces(): StoredQuoteTrace[] {
+  return db.prepare("SELECT * FROM quote_traces ORDER BY timestamp DESC").all() as StoredQuoteTrace[];
 }
 
 export function saveOpportunity(opportunity: Opportunity): number {
@@ -129,6 +328,10 @@ export function getOpportunitiesSince(secondsAgo: number): StoredOpportunity[] {
   `);
 
   return stmt.all(cutoffTimestamp) as StoredOpportunity[];
+}
+
+export function getRecentOpportunities(secondsAgo = 3600): StoredOpportunity[] {
+  return getOpportunitiesSince(secondsAgo);
 }
 
 export function getOpportunitiesBetween(

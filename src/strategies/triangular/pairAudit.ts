@@ -123,8 +123,8 @@ async function run() {
         continue;
       }
 
-      console.log(`\n== Pair: ${label}  pool: ${pool.address}  fee:${pool.fee}  dex:${pool.dex}`);
-      const info = await inspectPool(provider, pool.address);
+      console.log(`\n== Pair: ${label}  pool: ${pool.poolAddress}  fee:${pool.feeTier}  dex:${pool.dex}`);
+      const info = await inspectPool(provider, pool.poolAddress);
       const jsonSafe = JSON.stringify(info, (_k, v) => {
         if (typeof v === 'bigint') return v.toString();
         return v;

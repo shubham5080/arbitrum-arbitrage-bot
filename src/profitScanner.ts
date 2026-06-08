@@ -2,8 +2,8 @@ import { ethers } from "ethers";
 import dotenv from "dotenv";
 
 import { DEXES } from "./config/dexes";
-import { POOLS } from "./config/pools";
 import { TOKENS } from "./config/tokens";
+import { poolMetadataFromConfig } from "./config/poolMetadataFromConfig";
 import { getSushiBuyQuote, getUniswapSellQuote } from "./quotes/quoteEngine";
 
 dotenv.config();
@@ -27,9 +27,11 @@ async function main() {
   const results: Array<{ Size: number; Final: string; Profit: string }> = [];
 
   const weth = TOKENS.WETH;
-  const wethPools = POOLS.WETH as any;
-  const sushiPoolAddress = wethPools[DEXES.SUSHI].address;
-  const uniswapPoolAddress = wethPools[DEXES.UNISWAP].address;
+  const sushiPool = poolMetadataFromConfig("WETH", DEXES.SUSHI);
+  const uniswapPool = poolMetadataFromConfig("WETH", DEXES.UNISWAP);
+  if (!sushiPool || !uniswapPool) {
+    throw new Error("WETH pool metadata not configured");
+  }
 
   for (const size of sizes) {
     const wethOut = await getSushiBuyQuote(
@@ -37,7 +39,7 @@ async function main() {
       weth.address,
       weth.decimals,
       size.toString(),
-      sushiPoolAddress
+      sushiPool
     );
 
     const finalUsdc = await getUniswapSellQuote(
@@ -45,7 +47,7 @@ async function main() {
       weth.address,
       weth.decimals,
       ethers.formatUnits(wethOut, weth.decimals),
-      uniswapPoolAddress
+      uniswapPool.feeTier
     );
 
     const finalUsdcNumber = Number(ethers.formatUnits(finalUsdc, 6));

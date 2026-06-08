@@ -25,7 +25,9 @@ import {
 } from "../../quotes/quoteEngine";
 import { ADDRESSES } from "../../config/addresses";
 import { findBestUniswapPool } from "../../discovery/uniswapPoolDiscovery";
+import { enrichPoolMetadataFromAddress } from "../../discovery/poolMetadataHelpers";
 import { getPoolLiquidity } from "../../validation/poolValidator";
+import { PoolMetadata } from "../../types/poolMetadata";
 import { RISK } from "../../config/risk";
 import { logRejectedRoute } from "../../utils/rejectionLogger";
 
@@ -78,9 +80,9 @@ export class TriangleSimulator {
       )) {
         const bestPool = await findBestUniswapPool(this.provider, tokenIn, tokenOut);
         if (bestPool) {
-          feeParam = bestPool.fee;
-          feeTier = bestPool.fee;
-          legPoolAddress = bestPool.address;
+          feeParam = bestPool.feeTier;
+          feeTier = bestPool.feeTier;
+          legPoolAddress = bestPool.poolAddress;
           poolLiquidity = bestPool.liquidity.toString();
         }
         console.debug("[SIMULATOR] LINK Uniswap fee override", {
@@ -130,12 +132,19 @@ export class TriangleSimulator {
           );
         } else if (dex.toLowerCase() === "sushi") {
           if (!poolAddress) throw new Error("Sushi requires poolAddress");
+          const sushiPool = await enrichPoolMetadataFromAddress(
+            this.provider,
+            poolAddress,
+            "SUSHI",
+            "V3",
+            feeParam ?? 3000
+          );
           amountOutBigInt = await getSushiSellQuote(
             this.provider,
             tokenIn,
             amountInDecimals,
             amountInString,
-            poolAddress
+            sushiPool
           );
         } else if (dex.toLowerCase() === "camelot") {
           if (!poolAddress) throw new Error("Camelot requires poolAddress");
@@ -165,9 +174,15 @@ export class TriangleSimulator {
           );
         } else if (dex.toLowerCase() === "sushi") {
           if (!poolAddress) throw new Error("Sushi requires poolAddress");
+          const sushiPool: PoolMetadata = await enrichPoolMetadataFromAddress(
+            this.provider,
+            poolAddress,
+            "SUSHI",
+            "V3",
+            feeParam ?? 3000
+          );
           legPoolAddress = poolAddress;
-          const liq = await getPoolLiquidity(this.provider, poolAddress);
-          poolLiquidity = liq.toString();
+          poolLiquidity = sushiPool.liquidity.toString();
           amountOutBigInt = await getSushiQuote(
             this.provider,
             tokenIn,
@@ -175,7 +190,7 @@ export class TriangleSimulator {
             amountInDecimals,
             amountOutDecimals,
             amountInString,
-            poolAddress
+            sushiPool
           );
         } else if (dex.toLowerCase() === "camelot") {
           if (!poolAddress) throw new Error("Camelot requires poolAddress");

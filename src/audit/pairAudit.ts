@@ -94,8 +94,8 @@ async function run() {
         continue;
       }
 
-      console.log(`Discovered Sushi V3 pool: ${candidate.address} (fee ${candidate.fee})`);
-      const info = await inspectPair(provider, candidate.address);
+      console.log(`Discovered Sushi V3 pool: ${candidate.poolAddress} (fee ${candidate.feeTier})`);
+      const info = await inspectPair(provider, candidate.poolAddress);
       console.log(JSON.stringify(info, null, 2));
 
       const pairType = info.isV3 ? "V3" : info.reserve0 !== undefined ? "V2" : "unknown";

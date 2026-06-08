@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 import { DEXES } from "./config/dexes";
 import { TOKENS } from "./config/tokens";
-import { POOLS } from "./config/pools";
+import { poolMetadataFromConfig } from "./config/poolMetadataFromConfig";
 import {
   getSushiBuyQuote,
   getSushiSellQuote,
@@ -42,9 +42,11 @@ async function main() {
   }> = [];
 
   const weth = TOKENS.WETH;
-  const wethPools = POOLS.WETH as any;
-  const sushiPoolAddress = wethPools[DEXES.SUSHI].address;
-  const uniswapPoolAddress = wethPools[DEXES.UNISWAP].address;
+  const sushiPool = poolMetadataFromConfig("WETH", DEXES.SUSHI);
+  const uniswapPool = poolMetadataFromConfig("WETH", DEXES.UNISWAP);
+  if (!sushiPool || !uniswapPool) {
+    throw new Error("WETH pool metadata not configured");
+  }
 
   for (const size of sizes) {
     const sushiWethOut = await getSushiBuyQuote(
@@ -52,14 +54,14 @@ async function main() {
       weth.address,
       weth.decimals,
       size.toString(),
-      sushiPoolAddress
+      sushiPool
     );
     const sushiFinalUsdc = await getUniswapSellQuote(
       provider,
       weth.address,
       weth.decimals,
       ethers.formatUnits(sushiWethOut, weth.decimals),
-      uniswapPoolAddress
+      uniswapPool.feeTier
     );
     const sushiFinalNumber = Number(ethers.formatUnits(sushiFinalUsdc, 6));
     const sushiProfit = sushiFinalNumber - size;
@@ -69,14 +71,14 @@ async function main() {
       weth.address,
       weth.decimals,
       size.toString(),
-      uniswapPoolAddress
+      uniswapPool.feeTier
     );
     const uniFinalUsdc = await getSushiSellQuote(
       provider,
       weth.address,
       weth.decimals,
       ethers.formatUnits(uniWethOut, weth.decimals),
-      sushiPoolAddress
+      sushiPool
     );
     const uniFinalNumber = Number(ethers.formatUnits(uniFinalUsdc, 6));
     const uniProfit = uniFinalNumber - size;

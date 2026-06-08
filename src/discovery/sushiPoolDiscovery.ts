@@ -3,29 +3,26 @@ import { ADDRESSES } from "../config/addresses";
 import { getPoolLiquidity } from "../validation/poolValidator";
 import { RISK } from "../config/risk";
 import { logRejectedRoute } from "../utils/rejectionLogger";
+import { PoolMetadata } from "../types/poolMetadata";
+import { buildPoolMetadata, fetchPoolTokens } from "./poolMetadataHelpers";
 
 const FEES = [500, 3000, 10000];
 const FACTORY_ABI = ["function getPool(address,address,uint24) external view returns (address)"];
 
-export type PoolCandidate = {
-  fee: number;
-  address: string;
-  liquidity: bigint;
-  dex: string;
-};
+export type PoolCandidate = PoolMetadata;
 
 export async function findBestSushiPool(
   provider: ethers.Provider,
   tokenA: string,
   tokenB: string
-): Promise<PoolCandidate | null> {
+): Promise<PoolMetadata | null> {
   const factory = new ethers.Contract(
     ADDRESSES.SUSHI_V3_FACTORY,
     FACTORY_ABI,
     provider
   ) as any;
 
-  const candidates: PoolCandidate[] = [];
+  const candidates: PoolMetadata[] = [];
 
   for (const fee of FEES) {
     try {
@@ -39,12 +36,11 @@ export async function findBestSushiPool(
         logRejectedRoute({ tokenPath: [tokenA, tokenB], poolAddress, liquidity, reason: "liquidity_below_MIN_POOL_LIQUIDITY" });
         continue;
       }
-      candidates.push({
-        fee,
-        address: poolAddress,
-        liquidity,
-        dex: "SUSHI",
-      });
+
+      const { token0, token1 } = await fetchPoolTokens(provider, poolAddress);
+      candidates.push(
+        buildPoolMetadata(poolAddress, "SUSHI", "V3", fee, token0, token1, liquidity)
+      );
     } catch {
       continue;
     }

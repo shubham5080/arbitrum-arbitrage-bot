@@ -1,4 +1,0 @@
-◇ injected env (1) from .env // tip: ⌘ override existing { override: true }
-Database initialized at /home/shubham/arbitrum-arbitrage-bot/arbitrage.db
-
-Shutting down gracefully...

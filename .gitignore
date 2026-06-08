@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Environment & secrets
+.env
+.env.*
+
+# Local data & logs
+arbitrage.db
+arbitrage_old.db
+logs/
+*.log
+*.jsonl
+
+# Build artifacts
+artifacts/
+cache/
+typechain-types/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Hardhat
+coverage/
+coverage.json

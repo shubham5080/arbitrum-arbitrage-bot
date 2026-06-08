@@ -1,9 +1,0 @@
-◇ injected env (1) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
-Database initialized at /home/shubham/arbitrum-arbitrage-bot/arbitrage.db
-2026-06-06T07:14:24.784Z
-┌─────────┐
-│ (index) │
-├─────────┤
-└─────────┘
-
-Shutting down gracefully...

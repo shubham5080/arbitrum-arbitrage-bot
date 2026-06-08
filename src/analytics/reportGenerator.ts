@@ -559,5 +559,3 @@ export function saveReport(data: ReportData): void {
   fs.writeFileSync(reportPath, md, "utf-8");
   console.log(`\n✅ Report saved to: ${reportPath}\n`);
 }
-
-db.close();

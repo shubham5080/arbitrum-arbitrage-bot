@@ -21,8 +21,8 @@ async function run() {
     throw new Error('Could not discover best Uniswap LINK pool');
   }
 
-  console.log('Selected LINK Uniswap pool:', bestLinkPool.address);
-  console.log('Selected LINK Uniswap fee:', bestLinkPool.fee);
+  console.log('Selected LINK Uniswap pool:', bestLinkPool.poolAddress);
+  console.log('Selected LINK Uniswap fee:', bestLinkPool.feeTier);
 
   const route = {
     startToken: TOKENS.WETH.address, // placeholder, will use USDC in simulate call
@@ -58,7 +58,7 @@ async function run() {
         'sushi',
         'uniswap',
         {
-          leg1: bestLinkPool.address,
+          leg1: bestLinkPool.poolAddress,
           leg2: (POOLS as any).LINK["SUSHI"].address,
           leg3: (POOLS as any).WETH["UNISWAP"].address,
         }

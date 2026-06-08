@@ -32,10 +32,10 @@ async function auditCamelotForToken(symbol: string) {
       return;
     }
 
-    console.log(`✅ Pool found: ${pool.address}`);
-    const liquidity = await getPoolLiquidity(provider, pool.address);
+    console.log(`✅ Pool found: ${pool.poolAddress}`);
+    const liquidity = await getPoolLiquidity(provider, pool.poolAddress);
     console.log(`Liquidity: ${liquidity.toString()}`);
-    console.log(`Fee: ${pool.fee}`);
+    console.log(`Fee: ${pool.feeTier}`);
 
     // Buy: 100 USDC -> token
     let buyOut = "N/A";
@@ -43,7 +43,7 @@ async function auditCamelotForToken(symbol: string) {
 
     try {
       console.log("Fetching buy quote (100 USDC -> token)...");
-      const buy = await getCamelotBuyQuote(provider, token.address, token.decimals, "100", pool.address);
+      const buy = await getCamelotBuyQuote(provider, token.address, token.decimals, "100", pool.poolAddress);
       buyOut = ethers.formatUnits(buy, token.decimals);
       console.log(`Buy Quote: 100 USDC -> ${buyOut} ${symbol}`);
     } catch (e) {
@@ -53,7 +53,7 @@ async function auditCamelotForToken(symbol: string) {
 
     try {
       console.log("Fetching sell quote (1 token -> USDC)...");
-      const sell = await getCamelotSellQuote(provider, token.address, token.decimals, "1.0", pool.address);
+      const sell = await getCamelotSellQuote(provider, token.address, token.decimals, "1.0", pool.poolAddress);
       sellOut = ethers.formatUnits(sell, 6);
       console.log(`Sell Quote: 1 ${symbol} -> ${sellOut} USDC`);
     } catch (e) {
@@ -83,7 +83,7 @@ async function routeCoverage() {
     for (const dex of dexList) {
       const pool = await getHighestLiquidityPoolForDex(provider, symbol, dex);
       if (pool) {
-        const tradable = await isPoolTradable(provider, pool.address);
+        const tradable = await isPoolTradable(provider, pool.poolAddress);
         if (tradable) {
           activeDexes.push(dex);
         }

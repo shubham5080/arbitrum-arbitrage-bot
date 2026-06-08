@@ -1,3 +1,5 @@
+import { PoolType } from "./poolMetadata";
+
 export interface Opportunity {
   token: string;
   route: string;
@@ -23,4 +25,8 @@ export interface Opportunity {
   liquidity: string;
   feeTier: number;
   poolAddress: string;
+  poolType?: PoolType;
+  sellPoolAddress?: string;
+  sellPoolType?: PoolType;
+  sellFeeTier?: number;
 }

@@ -34,9 +34,9 @@ async function main() {
     for (const dex of dexList) {
       const pool = await getHighestLiquidityPoolForDex(provider, symbol, dex);
       if (pool) {
-        const tradable = await isPoolTradable(provider, pool.address);
+        const tradable = await isPoolTradable(provider, pool.poolAddress);
         if (tradable) {
-          console.log(`  ✅ ${dex}: found pool at ${pool.address.slice(0, 10)}... (liquidity: ${pool.liquidity.toString()})`);
+          console.log(`  ✅ ${dex}: found pool at ${pool.poolAddress.slice(0, 10)}... (liquidity: ${pool.liquidity.toString()})`);
           activeDexes.push(dex);
         } else {
           console.log(`  ⚠️  ${dex}: pool exists but liquidity too low`);

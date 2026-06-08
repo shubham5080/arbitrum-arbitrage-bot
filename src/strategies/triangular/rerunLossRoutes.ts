@@ -40,9 +40,9 @@ async function main() {
     const sushiPoolStartMiddle = await findBestSushiPool(provider, routeObj.startToken, routeObj.middleToken);
     const sushiPoolMiddleEnd = await findBestSushiPool(provider, routeObj.middleToken, routeObj.endToken);
     const poolAddresses: any = {};
-    if (leg1 === "sushi" && sushiPoolStartMiddle?.address) poolAddresses.leg1 = sushiPoolStartMiddle.address;
-    if (leg2 === "sushi" && sushiPoolMiddleEnd?.address) poolAddresses.leg2 = sushiPoolMiddleEnd.address;
-    if (leg3 === "camelot" && camelotPoolWETH_USDC?.address) poolAddresses.leg3 = camelotPoolWETH_USDC.address;
+    if (leg1 === "sushi" && sushiPoolStartMiddle?.poolAddress) poolAddresses.leg1 = sushiPoolStartMiddle.poolAddress;
+    if (leg2 === "sushi" && sushiPoolMiddleEnd?.poolAddress) poolAddresses.leg2 = sushiPoolMiddleEnd.poolAddress;
+    if (leg3 === "camelot" && camelotPoolWETH_USDC?.poolAddress) poolAddresses.leg3 = camelotPoolWETH_USDC.poolAddress;
 
     console.log("---");
     console.log({ route, dexCombo, initialAmount });

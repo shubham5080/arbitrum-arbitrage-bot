@@ -1,24 +1,21 @@
 import { ethers } from "ethers";
-import { DEXES } from "../config/dexes";
+import { DEXES, DexId } from "../config/dexes";
 import { TOKENS } from "../config/tokens";
 import { ADDRESSES } from "../config/addresses";
 import { findBestUniswapPool } from "./uniswapPoolDiscovery";
 import { findBestSushiPool } from "./sushiPoolDiscovery";
 import { findBestCamelotPool } from "./camelotPoolDiscovery";
+import { findBestPancakePool } from "./pancakePoolDiscovery";
+import { PoolMetadata } from "../types/poolMetadata";
 
-export type PoolCandidate = {
-  address: string;
-  fee: number;
-  dex: string;
-  liquidity: bigint;
-};
+export type PoolCandidate = PoolMetadata;
 
 export async function getHighestLiquidityPoolForDex(
   provider: ethers.Provider,
   tokenSymbol: string,
   dex: string
-): Promise<PoolCandidate | null> {
-  const token = (TOKENS as any)[tokenSymbol];
+): Promise<PoolMetadata | null> {
+  const token = (TOKENS as Record<string, { address: string; decimals: number }>)[tokenSymbol];
   if (!token) {
     return null;
   }
@@ -35,20 +32,29 @@ export async function getHighestLiquidityPoolForDex(
     return await findBestCamelotPool(provider, token.address, ADDRESSES.USDC);
   }
 
+  if (dex === DEXES.PANCAKESWAP) {
+    return await findBestPancakePool(provider, token.address, ADDRESSES.USDC);
+  }
+
   return null;
 }
 
 export async function findBestPoolForToken(
   provider: ethers.Provider,
   tokenSymbol: string
-): Promise<PoolCandidate | null> {
-  const uniswapPool = await getHighestLiquidityPoolForDex(provider, tokenSymbol, DEXES.UNISWAP);
-  const sushiPool = await getHighestLiquidityPoolForDex(provider, tokenSymbol, DEXES.SUSHI);
-  const camelotPool = await getHighestLiquidityPoolForDex(provider, tokenSymbol, DEXES.CAMELOT);
+): Promise<PoolMetadata | null> {
+  const dexes: DexId[] = [
+    DEXES.UNISWAP,
+    DEXES.SUSHI,
+    DEXES.CAMELOT,
+    DEXES.PANCAKESWAP,
+  ];
 
-  const candidates = [uniswapPool, sushiPool, camelotPool].filter(
-    (candidate): candidate is PoolCandidate => candidate !== null
-  );
+  const candidates = (
+    await Promise.all(
+      dexes.map((dex) => getHighestLiquidityPoolForDex(provider, tokenSymbol, dex))
+    )
+  ).filter((candidate): candidate is PoolMetadata => candidate !== null);
 
   if (candidates.length === 0) {
     return null;
